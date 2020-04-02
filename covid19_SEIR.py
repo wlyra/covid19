@@ -171,16 +171,19 @@
 # Input parameters 
 #
 
-country_name='Brazil'
+import numpy as np
+import sys
+import os.path
+from os import path
 
 lockdown='4/01/20' #country-specific overwritten
-fac1=0.0 # fraction removed at lockdown and confined 
+fac1=0.8 # fraction removed at lockdown and confined 
 
 # confinement factor by age bin, to test vertical confinement hypothesis
-# age bins = 0-10,10-20,20-30,30-40,40-50,50-60,60-70,70-80,80+
-factor1 = np.array([fac1,fac1,fac1,fac1,fac1,fac1,fac1,fac1,fac1])   # by age bin
+# age bins =        0-10,10-20,20-30,30-40,40-50,50-60,60-70,70-80,80+
+factor1 = np.array([fac1, fac1, fac1, fac1, fac1, fac1, fac1, 1.0, 1.0])   # by age bin
 
-release='4/05/21' #release from lockdown m/dd/yy
+release='' #release from lockdown m/dd/yy
 fac2=0.0 # fraction released from confinment
 factor2 = np.array([fac2,fac2,fac2,fac2,fac2,fac2,fac2,fac2,fac2])   
 
@@ -195,9 +198,16 @@ p                =0.6   # fraction of symptomatic and asymptomatic cases
 w                =0.8   # asymptomatic that cure on their own
 
 # Date to end computations 
-tmax_date = '6/01/20'
+tmax_date = '06/01/21'
 
+#
+# The variables above are user-specified if input.in exists in the directory
+#
 
+if (os.path.isfile('input.in')):
+        with open('input.in') as f:
+                data_read = f.read()
+                exec(data_read)
 # In[2]:
 
 
@@ -862,7 +872,8 @@ def RK3(f):
         write_output(it,t,dt,Rt,fQ,Q)
         write_output(it,t,dt,Rt,fH,H)        
         write_output(it,t,dt,Rt,fU,U)
-        write_output(it,t,dt,Rt,fR,R)        
+        write_output(it,t,dt,Rt,fR,R)
+        print(it,t,dt,Rt,sum(S),sum(C),sum(E),sum(A),sum(I),sum(Q),sum(H),sum(U),sum(R))
 #
         if ((it == itmax) or t > tmax):
             print(f'End of simulation at t = {np.int(t):d} days \n')
@@ -1225,130 +1236,4 @@ def plottage(country,results):
 
 # In[11]:
 
-
-#country = select_country(country_name)
-#plottage(country,RK3(country))
-
-
-# In[12]:
-
-
-#country = select_country('China')
-#plottage(country,RK3(country))
-
-
-# In[13]:
-
-
-#country = select_country('Korea, South')
-#plottage(country,RK3(country))
-
-
-# In[14]:
-
-
-#country = select_country('Italy')
-#plottage(country,RK3(country))
-
-
-# In[15]:
-
-
-#country = select_country('Iran')
-#plottage(country,RK3(country))
-
-
-# In[16]:
-
-
-#country = select_country('Denmark')
-#plottage(country,RK3(country))
-
-
-# In[17]:
-
-
-##country = select_country('El Salvador')
-##plottage(country,RK3(country))
-
-
-# In[18]:
-
-
-#country = select_country('Ireland')
-#plottage(country,RK3(country))
-
-
-# In[19]:
-
-
-#country = select_country('Norway')
-#plottage(country,RK3(country))
-
-
-# In[20]:
-
-
-#country = select_country('Poland')
-#plottage(country,RK3(country))
-
-
-# In[21]:
-
-
-#country = select_country('United Kingdom')
-#plottage(country,RK3(country))
-
-
-# In[22]:
-
-
-#country = select_country('Switzerland')
-#plottage(country,RK3(country))
-
-
-# In[23]:
-
-
-#country = select_country('Spain')
-#plottage(country,RK3(country))
-
-
-# In[24]:
-
-
-#country = select_country('Brazil')
-#plottage(country,RK3(country))
-
-
-# In[25]:
-
-
-#country = select_country('US')
-#plottage(country,RK3(country))
-
-
-# In[26]:
-
-
-#country = select_country('Germany')
-#plottage(country,RK3(country))
-
-
-# In[27]:
-
-
-#country = select_country('Tunisia')
-#plottage(country,RK3(country))
-
-
-# ### References 
-# 
-# More on the model can be found here, and references therein. 
-# 
-# https://idpjournal.biomedcentral.com/articles/10.1186/s40249-020-00640-3
-# 
-# https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SIR_model
-# 
-# https://towardsdatascience.com/modelling-the-coronavirus-epidemic-spreading-in-a-city-with-python-babd14d82fa2
-#     
+RK3(select_country(country_name))
