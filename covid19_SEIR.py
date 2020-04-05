@@ -692,7 +692,7 @@ def RK3(f):
 # Initial values 1/gamma ago  
 #
     E=np.zeros(9)
-    E[4]=I0
+    E[4]=E0
     C=np.zeros(9)
     I=np.repeat(1e-30,9)
     A=np.zeros(9)
