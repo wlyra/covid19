@@ -666,18 +666,13 @@ def RK3(f):
     #
     # Deaths reflect infections 1/gamma days past
     #
-    I0    = (D0/N)/fatality_rate
+    E0    = (D0/N)/fatality_rate
     nu    = fatality_rate_age
 #    
     cases=np.array(deaths[iD0:len(deaths)])
     tpast=days_past[iD0:len(deaths)]
     dDdt = np.gradient((1.0*cases/N),tpast)  
     beta = R0*gamma
-#
-#  Timestep defined by the timescale given by the rate of infection 
-#
-    tau_beta  = 1/beta #np.min(1./pastbeta)
-    dt = Cdt*tau_beta
 #
 # Lists to store the populations 
 #
@@ -696,10 +691,10 @@ def RK3(f):
 #
 # Initial values 1/gamma ago  
 #
-    I=np.zeros(9)
-    I[4]=I0
-    C=np.zeros(9)
     E=np.zeros(9)
+    E[4]=I0
+    C=np.zeros(9)
+    I=np.repeat(1e-30,9)
     A=np.zeros(9)
     Q=np.zeros(9)
     H=np.zeros(9)
@@ -734,7 +729,7 @@ def RK3(f):
     t= time_D0-tmu
     ds=0.
 #
-    SS,CC,EE,AA,II,QQ,HH,UU,RR,FF,DD,tt = appendvalues(sS,0.,0.,sA,sI,0.,0.,0.,0.,0.,0.,t,SS,CC,EE,AA,II,QQ,HH,UU,RR,FF,DD,tt)
+    SS,CC,EE,AA,II,QQ,HH,UU,RR,FF,DD,tt = appendvalues(sS,0.,sE,sA,sI,0.,0.,0.,0.,0.,0.,t,SS,CC,EE,AA,II,QQ,HH,UU,RR,FF,DD,tt)
     RRt=[R0]
 
     today        = datetime.datetime.fromisoformat(np.str(datetime.datetime.today())).timestamp() 
@@ -777,27 +772,20 @@ def RK3(f):
     
     for it in np.arange(itmax):
 #                                                                                
-        psi1=get_kronecker_delta(t,tlockdown,np.array(tt)[it-1],ampl1,dt)
-        psi2=get_kronecker_delta(t,trelease ,np.array(tt)[it-1],ampl2,dt)        
-#               
-        dt_beta_ts = [i * dt for i in beta_ts]
-#                                                                                
         tretarded = t + tmu
         if (tretarded < 0):    
-            #beta = np.interp(tretarded,tpast,pastbeta)
             dDdt_ = np.interp(tretarded,tpast,dDdt)               
             smuS = sum(fatality_rate_age*S)
-            #smuS = fatality_rate*sS
             beta = 1/smuS * 1/(sA+sI) * dDdt_ 
-            beta = 1/(sA+sI) * 1/sS * 1/(fatality_rate) * np.interp(tretarded,tpast,dDdt)  
-            Rt = beta/gamma                      
         else:
-            if (name=='Tunisia'):
-                # still low statistics
-                Rt = np.mean(RRt[it-10:it])
-                beta = Rt*gamma                    
-            else:
-                beta = beta
+            beta = beta
+        Rt = beta/gamma                      
+        
+        dt = Cdt*np.array([1./beta,1./sigma,1/eta,1/theta,1/gamma,1/xi]).min()
+        dt_beta_ts = [i * dt for i in beta_ts]
+        
+        psi1=get_kronecker_delta(t,tlockdown,np.array(tt)[it-1],ampl1,dt)
+        psi2=get_kronecker_delta(t,trelease ,np.array(tt)[it-1],ampl2,dt)        
 #
 # advance time
 #
@@ -836,12 +824,10 @@ def RK3(f):
                 dCdt[ip] = dCdt[ip]              + psi1[ip]*S[ip] - psi2[ip]*C[ip] 
                 dEdt[ip] = dEdt[ip] + Finf*S[ip]                             -       sigma*E[ip]            
                 dAdt[ip] = dAdt[ip]                                          + (1-p)*sigma*E[ip] -       theta*A[ip]
-                dIdt[ip] = dIdt[ip]                                          +    p *sigma*E[ip] + (1-w)*theta*A[ip] - gamma*I[ip] -           xi*I[ip]    
-
-                #dQdt[ip] = dQdt[ip]                                                                                  + gamma*I[ip] -           xi*Q[ip]
-                
-                dHdt[ip] = dHdt[ip]                                                                                                +    q[ip] *xi*I[ip] -            eta*H[ip]
-                dRdt[ip] = dRdt[ip]                                                              +    w *theta*A[ip] + gamma*I[ip] + (1-q[ip])*xi*I[ip] + (1-nu[ip])*eta*H[ip]
+                dIdt[ip] = dIdt[ip]                                          +    p *sigma*E[ip] + (1-w)*theta*A[ip] - gamma*I[ip]     
+                dQdt[ip] = dQdt[ip]                                                                                  + gamma*I[ip] -           xi*Q[ip]                
+                dHdt[ip] = dHdt[ip]                                                                                                +    q[ip] *xi*Q[ip] -            eta*H[ip]
+                dRdt[ip] = dRdt[ip]                                                              +    w *theta*A[ip]               + (1-q[ip])*xi*Q[ip] + (1-nu[ip])*eta*H[ip]
                 dFdt[ip] = dFdt[ip]                                                                                                                     +    nu[ip] *eta*H[ip]
 
                 S[ip] = S[ip] + dt_beta_ts[itsub]*dSdt[ip]
@@ -920,320 +906,5 @@ def RK3(f):
 
 # In[8]:
 
-
-def plottage(country,results):
-
-   import matplotlib.dates as mdates
-   
-   t=np.array(results['Time'])    
-   S=np.array(results['Susceptible'])
-   C=np.array(results['Confined'])    
-   E=np.array(results['Exposed'])
-   A=np.array(results['Asymptomatic'])    
-   I=np.array(results['Symptomatic'])
-   Q=np.array(results['Quarantined'])    
-   H=np.array(results['Hospitalized'])
-   U=np.array(results['ICU'])    
-   R=np.array(results['Removed'])
-   F=np.array(results['Fatalities'])    
-   Dm=np.array(results['Dead'])
-#   
-   N             = country['N']
-   deaths        = country['deaths']
-   days_past     = country['days past']
-   D0            = country['D0']
-   name          = country['name']
-   lockdown      = country['lockdown']
-   fatality_rate = country['fatality_rate']    
-   #icu_fraction  = country['icu_fraction']
-   number_of_icu_beds=country['number_of_icu_beds']
-#
-   strS    = 'Susceptible'
-   strC    = 'Confined'    
-   strE    = 'Exposed'    
-   strA    = 'Asymptomatic'    
-   strI    = 'Symptomatic'
-   strR    = 'Removed'
-   strQ    = 'Quarantined'    
-   strH    = 'Hospitalized'    
-   strD    = 'Dead'
-   strII   = 'Infections'
-   strDD   = 'Deaths'
-   strdt   = 'Doubling Time'
-   strdays = 'days'
-   strDays = 'Days'
-   strPop  = '# of Population'
-   strCCas  = '# of Cases'
-   strCas  = 'Cummulative # of Cases'
-
-   fig, (ax1,ax2,ax3) = plt.subplots(3,1,figsize=[15,25],sharex=True)
-   
-   #fig, (ax1,ax2) = plt.subplots(2,1,figsize=[15,15],sharex=True)
-
-# Evolution of the populations
-
-   n=len(S)
-   
-   datelist=[]
-   for i in range(n):
-       datelist.append(datetime.datetime.today() + datetime.timedelta(days=t[i]))      
-   date64=np.array(datelist, dtype='datetime64')         
-   date=date64.astype('O')
-   #    
-   #ax1.plot(date,S,color='green'  ,label=strS)
-   #ax1.plot(date,C,color='grey'   ,label=strC)    
-   ax1.plot(date,N*E,color='magenta',label=strE)
-   ax1.plot(date,N*A,color='purple' ,label=strA)    
-   ax1.plot(date,N*I,color='orange' ,label=strI)
-   #ax1.plot(date,N*Q,color='grey'   ,label=strQ)    
-   ax1.plot(date,N*H,color='cyan'   ,label=strH)
-   
-   ax2.plot(date,N*H,color='cyan'   ,label=strH)    
-   ax2.plot(date,N*U,color='magenta',label='ICU Cases')     
-   ax2.axhline(number_of_icu_beds,linestyle='--',color='magenta',label='ICU Capacity')    
-   
-   #ax2.plot(date,N*D,color='black'  ,label=strD)
-   ax2.set_yscale("log")
-   ax2.set_ylim([1,1.5*N*H.max()])
-   
-   #ax1.plot(date,100*R,color='blue'   ,label=strR)
-   
-   #ax1.fmt_xdata = mdates.DateFormatter('%Y-%m-%d')
-   
-# Cumulative number of infections and deaths 
-   cumm_cases=1-(S+C)  # E+A+I+H+R
-   ax3.plot(date,N*cumm_cases,color='orange',label="# of Cases (Model)")
-   tretarted = t + tmu
-   
-   D = fatality_rate*np.interp(t,tretarted,cumm_cases)
-   print("Number of dead:",np.round(N*D[n-1]))
-   itD0     = [i for i in range(n) if D[i] >= (D0+1)/N][0] 
-   ax3.plot(date[itD0-1:n-1],N*D[itD0-1:n-1],color='black',label="Deaths (Model)")
-
-   #integratedD = np.zeros(n)
-   #dt=np.gradient(t)
-   #for i in range(n):
-   #    sumD=0.
-   #    for j in np.arange(1,i):
-   #        sumD = sumD + .5*(Dm[j-1]+Dm[j])*dt[j]
-   #    #integratedD[i]=np.sum(.5*(Dm[0:i-1]+Dm[1:i])*dt[1:i]) * 1/(t[i]-t[0])
-   #    integratedD[i]=sumD/(t[i]-t[0])
-   #ax3.plot(date,N*np.interp(t,tretarted,integratedD),color='black')
-   print("Number of dead:",np.round(N*Dm[n-1]))
-   
-   pastdatelist=[]
-   for i in range(len(days_past)):
-       pastdatelist.append(datetime.datetime.today() + datetime.timedelta(days=days_past[i]))
-   pastdate64=np.array(pastdatelist, dtype='datetime64')         
-   pastdate=pastdate64.astype('O')    
-   ax3.plot(pastdate,country['cases'],'o',color='orange',label='Confirmed Cases')
-   ax3.plot(pastdate,country['deaths'],'o',color='black',label='Deaths')
-   
-   integratedH = np.zeros(n)
-   dt=np.gradient(t)
-   for i in range(n):
-       sumH=0.
-       for j in np.arange(1,i):
-           sumH = sumH + .5*(H[j-1]+H[j])*dt[j]
-       #integratedD[i]=np.sum(.5*(Dm[0:i-1]+Dm[1:i])*dt[1:i]) * 1/(t[i]-t[0])
-       integratedH[i]=sumH#/(t[i]-t[0])
-   ax3.plot(date,N*integratedH,color='cyan',label='Hospitalized (model)')    
-#    
-#    ax3.plot(date,N*F,color='black',linestyle=':')
-
-   ax3.fmt_xdata = mdates.DateFormatter('%Y-%m-%d')
-#
-   #S2=np.array(results['S2'])
-   #E2=np.array(results['E2'])    
-   #I2=np.array(results['I2'])
-   #R2=np.array(results['R2'])
-   #ax1.plot(date,100*S2,color='green'  ,linestyle=':')
-   #ax1.plot(date,100*E2,color='magenta',linestyle=':')    
-   #ax1.plot(date,100*I2,color='orange' ,linestyle=':')
-   #ax1.plot(date,100*R2,color='blue'   ,linestyle=':')
-   #cumm2_cases=E2+I2+R2    
-   #D2= np.zeros(n)
-   #tretarted = t + tmu
-   #cumm2_cases_prior = np.interp(t,tretarted,cumm2_cases)
-   #D2 = fatality_rate*cumm2_cases_prior    
-   #print("Number of dead - no intervention:",np.round(N*D2[n-1]))   
-   #print("Number of dead averted:",np.round(N*(D2[n-1]-D[n-1])))   
-   #ax2.plot(date,N*(E2+I2+R2+D2),color='orange',label="# of Cases (Model without Intervention)",linestyle=":")
-   #ax2.plot(date[itD0-1:n-1],N*D2[itD0-1:n-1],color='black',label="Deaths (Model without Intervention)",linestyle=":")    
-   
-# Annotations and prettifying 
-
-   ax1.set_ylabel(strPop)
-   ax1.legend(loc="best",fancybox=True,shadow=True)
-   title=name+" Populations"
-   
-   ax1.axvline(datetime.datetime.today(),linestyle='--',color='black')
-   #ax1.annotate('Today', xy=(datetime.datetime.today(), 80),rotation=-90,color='black')
-   
-   ax1.set_title(title)
-   ax1.grid()
-
-   ax2.set_ylabel(strCCas)
-   ax2.legend(loc="best",fancybox=True,shadow=True)
-   title=name+" Hospitalizations"
-   
-   ax2.axvline(datetime.datetime.today(),linestyle='--',color='black')
-   #ax1.annotate('Today', xy=(datetime.datetime.today(), 80),rotation=-90,color='black')
-   
-   ax2.set_title(title)
-   ax2.grid()
-
-   
-   ax3.set_yscale("log")
-   ax3.set_ylim([1,1.5*N])
-   
-   #ax2.set_xlim(['2020-03-10','2020-03-30'])
-   ax3.set_ylabel(strCas)
-   title=name+" Cumulative"#+", $N$="+strlog+", $I_{tot}$="+np.str(np.int(I0))
-   ax3.set_title(title)
-
-   #ax2.axvline(datetime.datetime.today(),linestyle='--',color='black')
-   #ax2.annotate('Today', xy=(datetime.datetime.today(), 1e5),rotation=-90,color='black')
-       
-   ax3.legend(loc="best",fancybox=True,shadow=True)
-   ax3.grid()
-   
-   if (lockdown!=''):
-       date_object = datetime.datetime.strptime(lockdown, '%m/%d/%y')
-       ax3.axvline(date_object,linestyle=':',color='red')
-       ax3.annotate('Lockdown', xy=(date_object, 5e1),rotation=-90,color='red')
-
-       ax3.axvline(date_object+datetime.timedelta(days=+Tdeath),linestyle='--',color='red')
-       ax3.annotate(np.str(np.int(np.round(Tdeath)))+'days after\nlockdown', 
-           xy=(date_object+datetime.timedelta(days=+Tdeath), 5e1),
-           rotation=-90,
-           color='red')    
-
-
-   startdate=date[0]
-   ##enddate   = datetime.datetime.strptime('5/01/20', '%m/%d/%y')
-   #if (name=="China" or name=="Denmark"):
-   #    endd='5/01/20'
-   ##elif (name=="Italy"):
-   #else:    
-   #    endd='6/15/20'
-   #
-   enddate   = datetime.datetime.strptime(tmax_date, '%m/%d/%y')
-   ax1.set_xlim([startdate,enddate])
-   ax2.set_xlim([startdate,enddate])
-   ax3.set_xlim([startdate,enddate])    
-
-   #fig.autofmt_xdate()
-   
-   plt.xticks(rotation=45)
-   
-   plt.tight_layout()
-   #plt.show()
-   plt.savefig("./figs/"+name+"_"+np.str(datetime.date.today())+".png")
-
-   return 
-
-
-# In[9]:
-
-
-#import matplotlib.dates as mdates
-#
-#fig, (ax1,ax2) = plt.subplots(1,2,figsize=[16,6])
-#
-##country_list=['China','Korea, South','Iran','Italy','Denmark','Norway','Poland','Spain','US','Brazil']
-#country_list=['China','Korea, South','Iran','Italy','US','Brazil']
-#
-#for i in range(len(country_list)): 
-#    country = select_country(country_list[i])
-#    N=country['N']
-#    lockdown=country['lockdown']
-#    f=RK3(country)
-#    t=np.array(f['Time'])  
-#    color=country['color']
-#    median_age=country['median_age']
-#    fatality_rate=country['fatality_rate']    
-#    
-#    deaths    = country['deaths']
-#    tdeaths   = country['days past']
-#    iD0 = [i for i in range(len(deaths)) if deaths[i] > 10][0]    
-#    time_D0=tdeaths[iD0] # tretare
-#    
-#    Rt=np.array(f['RRt'])   
-#        
-#    t                = np.array(f['Time'])
-#    n=len(t)
-#    tretarded        = t + tmu
-#    itD0 = [i for i in range(n) if tretarded[i] >= time_D0][0]
-#
-#    datelist=[]
-#    for k in range(len(t)):
-#        datelist.append(datetime.datetime.today() + datetime.timedelta(days=t[k]))        
-#    date64=np.array(datelist, dtype='datetime64')         
-#    date=date64.astype('O')    
-#    datelist=[]
-#    for k in range(len(tdeaths)):
-#        datelist.append(datetime.datetime.today() + datetime.timedelta(days=tdeaths[k]))        
-#    date64=np.array(datelist, dtype='datetime64')         
-#    datedeaths=date64.astype('O')    
-#    
-#    ax1.plot(datedeaths,np.gradient(deaths,tdeaths),'-o',label=country_list[i],color=color)        
-#    ax2.plot(date[itD0:n-1],Rt[itD0:n-1],label=country_list[i],color=color)    
-#    lockdown_date = datetime.datetime.strptime(lockdown, '%m/%d/%y')
-#    ax2.axvline(lockdown_date,linestyle=':',color=color)    
-#
-#ax2.set_ylim([0,6])
-#
-#ax1.set_yscale("log")
-#ax1.legend(loc='best',fancybox='True',shadow='True')
-#
-#ax1.set_title('Fatalities (Data)')
-#ax1.set_ylabel(r'$dD/dt$ (day$^{-1}$)')
-#
-#ax2.set_title('Basic Reproduction Number (Model)')
-#ax2.set_ylabel(r'$R_t$')
-#
-#startdate = datetime.datetime.strptime('1/20/20', '%m/%d/%y')
-#today     = datetime.datetime.today()
-#ax1.set_xlim([startdate                                ,today                                ])
-#ax2.set_xlim([startdate-datetime.timedelta(days=Tdeath),today-datetime.timedelta(days=Tdeath)])
-#
-#plt.xticks(rotation=45)
-#fig.autofmt_xdate()
-#
-#plt.tight_layout()
-#
-#plt.savefig("Rt_data_model.pdf")
-#
-
-
-# In[10]:
-
-
-#import matplotlib.dates as mdates
-
-#fig, (ax1) = plt.subplots(1,1,figsize=[16,10])
-
-#country_list=['China','Korea, South','Iran','Italy','Denmark','Norway','Poland','Spain','US','India',
-#              'Sweden','Brazil','Germany','France','Tunisia','Japan','Ireland','Uruguay','Chile']
-#for i in range(len(country_list)): 
-#    country = select_country(country_list[i])
-#    median_age=country['median_age']
-#    fatality_rate=country['fatality_rate']    
-    
-#    ax1.plot(median_age,100*fatality_rate,'o')
-#    ax1.annotate(country_list[i],xy=(median_age+0.1,100*fatality_rate+0.01))
-    
-#ax1.set_title('Median Age vs Fatality Rate')
-#ax1.set_ylabel('Fatality Rate (%)')
-#ax1.set_xlabel('Median Age')
-
-#plt.tight_layout()
-
-#plt.show()
-#plt.savefig("MedianAge_FatalityRate.pdf")
-
-
-# In[11]:
 
 RK3(select_country(country_name))
