@@ -204,8 +204,9 @@ tmax_date = '06/01/21'
 # The variables above are user-specified if input.in exists in the directory
 #
 
-if (os.path.isfile('input.in')):
-        with open('input.in') as f:
+datadir='./'
+if (os.path.isfile(datadir+'input.in')):
+        with open(datadir+'input.in') as f:
                 data_read = f.read()
                 exec(data_read)
 # In[2]:
@@ -411,7 +412,7 @@ def get_fatality_rate(age):
 
 def read_jhu_data(country,mode):
     import csv
-    base='./jhudata/time_series_covid19_' 
+    base='/Users/wlyra/covid19/jhudata/time_series_covid19_' 
     with open(base+mode+'_global.csv', newline='') as csvfile:    
         datareader = csv.reader(csvfile, delimiter=',')#, quotechar='|')
         data = {} 
@@ -460,14 +461,14 @@ def read_jhu_data_pandas(country,mode):
 
 def read_population_pyramid_data(country):
     import csv
-    #base='./dat/time_series_19-covid-' 
+    #base='/Users/wlyra/covid19/dat/time_series_19-covid-' 
     #with open(base+mode+'.csv', newline='') as csvfile:
     if (country=='Korea, South'):
-        file='./popdata/SKorea-2019.csv' 
+        file='/Users/wlyra/covid19/popdata/SKorea-2019.csv' 
     elif (country=='United Kingdom'):
-        file='./popdata/UK-2019.csv' 
+        file='/Users/wlyra/covid19/popdata/UK-2019.csv' 
     else:
-        file='./popdata/'+country+'-2019.csv' 
+        file='/Users/wlyra/covid19/popdata/'+country+'-2019.csv' 
 #
     with open(file, newline='') as csvfile:    
         datareader = csv.reader(csvfile)#, delimiter=',', quotechar='|')
@@ -754,18 +755,18 @@ def RK3(f):
     dirBase='output'
     if not os.path.exists(dirBase):
         os.mkdir(dirBase)
-    dirName=dirBase+'/'+name
-    if not os.path.exists(dirName):
-        os.mkdir(dirName)    
-    fS = open(dirName+'/'+name+'_Sfile.dat','w+')
-    fC = open(dirName+'/'+name+'_Cfile.dat','w+')
-    fE = open(dirName+'/'+name+'_Efile.dat','w+')
-    fA = open(dirName+'/'+name+'_Afile.dat','w+')
-    fI = open(dirName+'/'+name+'_Ifile.dat','w+')
-    fQ = open(dirName+'/'+name+'_Qfile.dat','w+')
-    fH = open(dirName+'/'+name+'_Hfile.dat','w+')
-    fU = open(dirName+'/'+name+'_Ufile.dat','w+')
-    fR = open(dirName+'/'+name+'_Rfile.dat','w+')    
+    #dirName=dirBase+'/'+name
+    #if not os.path.exists(dirName):
+    #    os.mkdir(dirName)    
+    fS = open(dirBase+'/'+name+'_Sfile.dat','w+')
+    fC = open(dirBase+'/'+name+'_Cfile.dat','w+')
+    fE = open(dirBase+'/'+name+'_Efile.dat','w+')
+    fA = open(dirBase+'/'+name+'_Afile.dat','w+')
+    fI = open(dirBase+'/'+name+'_Ifile.dat','w+')
+    fQ = open(dirBase+'/'+name+'_Qfile.dat','w+')
+    fH = open(dirBase+'/'+name+'_Hfile.dat','w+')
+    fU = open(dirBase+'/'+name+'_Ufile.dat','w+')
+    fR = open(dirBase+'/'+name+'_Rfile.dat','w+')    
         
     #print 'it --- t (day) --- dt --- Rt --- S'
     #f.write("%d %E %E %E %E %E %E %E %E %E %E %E %E\n"%(it,t,dt,Rt,S[0:9]))
